@@ -1,6 +1,6 @@
-# Field Notes - Windows Lateral Movement and Remote Credential Harvesting
+# Hunting Notes - Windows Lateral Movement and Credential Harvesting
 
-> Paolo Coba | 22/09/2021
+> Paolo Coba | 04/03/2022
 
 -------------------------------------------
 
@@ -10,6 +10,10 @@
 * [Lee Kirkpatrick's blogs on Lateral Movement](https://community.netwitness.com/t5/user/viewprofilepage/user-id/6034)
 * [https://www.jaiminton.com/cheatsheet/DFIR/#](https://www.jaiminton.com/cheatsheet/DFIR/#)
 * [https://riccardoancarani.github.io/2020-05-10-hunting-for-impacket/#wmiexecpy](https://riccardoancarani.github.io/2020-05-10-hunting-for-impacket/#wmiexecpy)
+<<<<<<< HEAD:FieldNotes-LM-CH/README.md
+=======
+* [https://u0041.co/blog/post/1](https://u0041.co/blog/post/1)
+>>>>>>> d9c3b6e23c491255c54459794d643df70338128d:Hunting-LM-CH/notes_lm_ch.md
 
 # PsExec
 
@@ -244,6 +248,99 @@ action contains '127.0.0.1\\admin$\\__1'
 param.dst contains '127.0.0.1\\admin$\\__1'
 ```
 
+# SCShell
+
+## Resources
+* [https://github.com/Mr-Un1k0d3r/SCShell](https://github.com/Mr-Un1k0d3r/SCShell)
+
+## Characteristics
+
+Fileless lateral movement. The tool does not create a service or drop a file but instead uses the `ChangeServiceConfigA` function to edit an existing srevice and make it execute commands.
+
+Only command execution using `DCE/RPC`. This makes it stealthier but more limited in functionality.
+
+## Normal Usage
+```cmd
+SCShell.exe target service payload domain username password
+```
+
+## Pass-the-hash Usage
+
+### Impacket
+```bash
+python scshell.py <domain>/<user>@<target> -hashes <hashes>
+```
+
+### Alternative
+```cmd
+sekurlsa::pth /user:user /domain:domain /ntlm:hash /run:cmd.exe
+
+Use scshell.exe in spawned cmd.exe
+```
+
+## Detection
+
+### Detection in NWP
+* `Indicators of Compromise`: `remote service control`
+    * `Action Event`:
+        * `startservicea`: Starts a service.
+        * `queryserviceconfiga`: Retrieves the configuration parameters of the specified service.
+        * `openserviceconfiga`: Opens existing service.
+        * `openscmanagerw`: Establishes a connection to the service control manager on the specified system and opens the specified service control manager database.
+        * `changeserviceconfiga`: Changes configuration parameters of a service.
+* Application rule:
+```cmd
+service = 139 && filename = 'svcctl' && action = 'openservicea' && action = 'changeserviceconfiga' && action = 'startservicea'
+```
+
+### Detection in NWE
+* Method 1 - Frequency analysis:
+    * Query:
+    ```cmd
+    device.type='nwendpoint' && filename.src='services.exe' && action='createprocess'
+    ```
+    * Open `Filename Destination` and sort in ascending order. This allows for frequency analysis.
+* `Behaviors of Compromise`:
+    * `os process runs command shell`
+    * `services runs command shell`
+
+# Atexec.py
+
+## Characteristics
+Lateral movement through Windows task creation. Creates remote task, executes and then deletes it. Does not allow interactive sessions. It writes command results to a file with the same name as the task in C:\Windows\temp\<taskname>.tmp.
+
+## Usage
+```bash
+python atexec.py <user>:<password>@<host> <command>
+```
+
+## Detection
+
+* Task XML file can be found in `C:\Windows\System32\Tasks`. Check for random names.
+* Windows Event Logs:
+    * Microsoft-Windows-TaskScheduler/Operational:
+        * Event ID 106: New task creation event. Taskname and username.
+        * Event ID 110: Task triggered by user.
+        * Event ID 141: Task deleted.
+    * Security:
+        * Event ID 4624: Logon type 3 and NTLM protocol used. 2 logins:
+            * Login for task creation.
+            * Login for retrieving the results.
+        * Event ID 4634: Logoff with the same login ID as the login event above.
+    * Microsoft-Windows-SMBServer/Security:
+        * Event ID 1015: Contains the attacking IP.
+* MFT Artifacts:
+    * Task file in C:\Windows\system32\tasks\<taskname>
+    * Results file in C:\Windows\temp\<taskname>.tmp
+
+### Detection in NWP
+* Query:
+```cmd
+service=139 && analysis.service='named pipe`
+```
+* Search in `Filename`: there must be `atsvc` to indicate that the AT-Scheduler service was used.
+
+
 # Secretsdump.py
 
 ## Characteristics
@@ -267,7 +364,11 @@ python secretsdump.py <domain>/<user>:<password>@<dest>
 * Configure Security Access Control List: Change ACL to log access to the HKLM\SYSTEM\CurrentControlSet\Control\SecurePipeServers\winreg registry value. Auditing permissions to everyone.
 * Configure regisry access auditing in Local Security Policy -> Security Settings -> Advanced Audit Policy Configuration -> System Audit Policies - Local Group -> Object Access -> Audit Registry.
 
+# Lsassy
 
+## Resources
+* [https://github.com/Hackndo/lsassy](https://github.com/Hackndo/lsassy)
+* [https://en.hackndo.com/remote-lsass-dump-passwords/](https://en.hackndo.com/remote-lsass-dump-passwords/)
 
 
 
