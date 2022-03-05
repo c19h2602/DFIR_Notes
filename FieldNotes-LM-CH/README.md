@@ -9,7 +9,7 @@
 * [https://eaneatfruit.github.io/2019/08/18/Offensive-Lateral-Movement/](https://eaneatfruit.github.io/2019/08/18/Offensive-Lateral-Movement/)
 * [Lee Kirkpatrick's blogs on Lateral Movement](https://community.netwitness.com/t5/user/viewprofilepage/user-id/6034)
 * [https://www.jaiminton.com/cheatsheet/DFIR/#](https://www.jaiminton.com/cheatsheet/DFIR/#)
-* [https://riccardoancarani.github.io/2020-05-10-hunting-for-impacket/#wmiexecpy]
+* [https://riccardoancarani.github.io/2020-05-10-hunting-for-impacket/#wmiexecpy](https://riccardoancarani.github.io/2020-05-10-hunting-for-impacket/#wmiexecpy)
 
 # PsExec
 
