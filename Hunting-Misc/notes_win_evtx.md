@@ -6,8 +6,115 @@
 
 ## Resources
 * [https://svch0st.medium.com/event-log-tampering-part-1-disrupting-the-eventlog-service-8d4b7d67335c](https://svch0st.medium.com/event-log-tampering-part-1-disrupting-the-eventlog-service-8d4b7d67335c)
+* [https://medium.com/@lucideus/introduction-to-event-log-analysis-part-1-windows-forensics-manual-2018-b936a1a35d8a](https://medium.com/@lucideus/introduction-to-event-log-analysis-part-1-windows-forensics-manual-2018-b936a1a35d8a)
+* [https://andreafortuna.org/2017/10/20/windows-event-logs-in-forensic-analysis/](https://andreafortuna.org/2017/10/20/windows-event-logs-in-forensic-analysis/)
+
+## Event Log Forensics
+
+Serve as the primary source of evidence as the operating system logs every system activity. Saved in `C:\Windows\System32\winevt\Logs`. Three main components:
+* Application
+* System
+* Security
+
+### Main Event Logs
+* System Log: records events that are logged by the OS segments. May contain data about hardware changes, device drivers, system changes and all activities related to the machine.
+* Security Log: contains Logon/Logoff activity and other activities related to Windows security. Specified by the system's audit policy.
+* Application Log: records errors that occur in an installed application, informational events and warnings from software applications.
+* Other Logs:
+    * Directory Service Events: DCs record any AD changes.
+    * File Replication Service Events
+    * DNS events
+
+### Characteristics
+* Possible to disable the service.
+* Data can be modified.
+* Event logs from one machine can be transplanted into another.
+* Uses internal host clock which can affect logs inf inaccurate.
+* Event Log settings are controlled via the Windows Registry: `HKLM\SYSTEM\CurrentControlSet\Services\EventLog`.
+
+### Tools to parse Event Logs
+* [LogParser](https://www.microsoft.com/en-us/download/details.aspx?id=24659)
+```cmd
+LogParser.exe" "SELECT * INTO <infile> FROM <event logs>" -stats:OFF -i:evt -o:csv
+```
+* [Event Log Explorer](https://eventlogxp.com/)
+* [EvtxECmd](https://ericzimmerman.github.io/#!index.md)
+```cmd
+EvtxECmd.exe -d "<event logs>" --csv D:\ --csvf <outfile>
+```
+
+### Useful Event IDs for DFIR
+
+| Event ID     (2000/XP/2003) | Event ID    (Vista/7/8/2008/2012) | Description                                                                           | Log Name |   |
+|-----------------------------|-----------------------------------|---------------------------------------------------------------------------------------|----------|---|
+| 528                         | 4624                              | Successful Logon                                                                      | Security |   |
+| 529                         | 4625                              | Failed Login                                                                          | Security |   |
+| 680                         | 4776                              | Successful /Failed Account Authentication                                             | Security |   |
+| 624                         | 4720                              | A user account was created                                                            | Security |   |
+| 636                         | 4732                              | A member was added to a security-enabled local group                                  | Security |   |
+| 632                         | 4728                              | A member was added to a security-enabled global group                                 | Security |   |
+| 2934                        | 7030                              | Service Creation Errors                                                               | System   |   |
+| 2944                        | 7040                              | The start type of the IPSEC Services service was changed from disabled to auto start. | System   |   |
+| 2949                        | 7045                              | Service Creation                                                                      | System   |   |
+
+#### Logon type Event IDs
+
+| Logon type | Logon title      | Description                                                                                                                                                                                                                                                                                                                    | Log Name |   |
+|------------|------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|---|
+| 2          | Interactive      | A user logged on to this computer.                                                                                                                                                                                                                                                                                             | Security |   |
+| 3          | Network          | A user or computer logged on to this computer from the network.                                                                                                                                                                                                                                                                | Security |   |
+| 4          | Batch            | Batch logon type is used by batch servers, where  processes may be executing on behalf of a user without their direct  intervention.                                                                                                                                                                                           | Security |   |
+| 5          | Service          | A service was started by the Service Control Manager.                                                                                                                                                                                                                                                                          | Security |   |
+| 7          | Unlock           | This workstation was unlocked.                                                                                                                                                                                                                                                                                                 | Security |   |
+| 8          | NetworkCleartext | A user logged on to this computer from the network. The  user's password was passed to the authentication package in its unhashed  form. The built-in authentication packages all hash credentials before  sending them across the network. The credentials do not traverse the  network in plaintext (also called cleartext). | Security |   |
+| 2934       | 7030             | Service Creation Errors                                                                                                                                                                                                                                                                                                        | System   |   |
+| 2944       | 7040             | The start type of the IPSEC Services service was changed from disabled to auto start.                                                                                                                                                                                                                                          | System   |   |
+| 2949       | 7045             | Service Creation                                                                                                                                                                                                                                                                                                               | System   |   |
+
+
 
 ## EVTX Anti-Forensic techniques and detection
+
+### Common Methods
+
+#### Clear the Logs
+```cmd
+wevutil cl Security
+
+Clear-EventLog
+```
+
+Detection:
+* Security Event ID 1102
+* System Event ID 104
+* Command line usage of `wevutil`
+
+#### Disable Event Log Service
+```cmd
+sc stop EventLog
+```
+
+Detection:
+* Service Control Manager Event ID 7035
+* Command line usage of `sc`
+
+#### Change policy and Reduce size
+```powershell
+Get-EventLog -List ! %<Limit-EventLog -OverflowAction DoNotOverwrite -MaximumSize 64KB -LogName $_.log>
+```
+
+* Leaves event log indicating that logs were changed. Delete for further stealth.
+* When done with operations:
+```powershell
+Get-EventLog -List ! %<Limit-EventLog -OverflowAction OverwriteAsNeeded -MaximumSize 20480KB -LogName $_.log>
+```
+
+Active Detection:
+* Watch for modification to Event Log configuration registry keys (Retention and MaxSize).
+
+Forensic Detection:
+* Correlate registry modified timestamps to potential malicious activity.
+* Carve EVTX chunks from slack space or recover from memory.
 
 ### Disrupting the EventLog Service
 
@@ -114,3 +221,22 @@ Detection:
 ### Combined Techniques
 
 * [https://svch0st.medium.com/event-log-tampering-part-3-combining-techniques-ce6ead21ca49](https://svch0st.medium.com/event-log-tampering-part-3-combining-techniques-ce6ead21ca49)
+
+#### EventCleaner
+* [https://github.com/QAX-A-Team/EventCleaner](https://github.com/QAX-A-Team/EventCleaner)
+
+Steps to execute:
+```cmd
+EventCleaner.exe suspend
+
+EventCleaner.exe closehandle
+
+EventCleaner.exe <event record id>
+
+EventCleaner.exe normal
+```
+
+Detection:
+* Cannot rely on closed service because the technique suspends threads only.
+* Cannot detect with danderspritz method because the record is deleted and not hidden.
+* Look for EventRecordID inconsistencies.
