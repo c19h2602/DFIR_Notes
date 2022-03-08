@@ -385,10 +385,57 @@ service=139 && analysis.service='named pipe`
 
 ### Detection in source
 * Registry `HKCU\SOFTWARE\Microsoft\Terminal Server Client`: Contains username hint when connecting to remote systems with specified account.
-* Jump Lists: `C:\Users\%USERNAME%\AppData\Roaming\Microsoft\Windows\Recent\(Automatic/Custom)Destinations`
+* Jumplists: `C:\Users\%USERNAME%\AppData\Roaming\Microsoft\Windows\Recent\(Automatic/Custom)Destinations`.
+    * `{MSTSC-APPID}-automaticDestinations-ms` tracks remote desktop connection destinations and times.
+* `NTUSER.DAT`: check for `mstsc.exe`, the remote desktop client execution. Shows last time executed, number of times executed. 
+    * `RecentItems` subkey tracks connection destinations and times.
+* Prefetch: `C:\Windows\Prefetch\mstsc.exe-{hash}.pf`
+    * Tool: `PECmd.exe`
+    ```cmd
+    PECmd.exe -d <Prefetch location>
+    ```
+* Bitmap Cache: `C:\Users\<Username>\AppData\Local\Microsoft\Terminal Server Client\Cache`:
+    * `bcache##.bmc`
+    * `cache####.bin`
+    * Tool: [https://github.com/ANSSI-FR/bmc-tools.git](https://github.com/ANSSI-FR/bmc-tools.git)
+* Security EVTX:
+    * Event ID `4648`: Logon specifying alternate credentials. If NLA enabled on destination it can give:
+        * Current logged-on Username
+        * Alternate Username
+        * Destination hostname/ip
+        * Process name
+* `Microsoft-Windows-TerminalServices-RDPClient%4Operational.evtx`
+    * `1024`: Destination hostname
+    * `1102`: Destination IP address
 
 ### Detection in target
 * `NTUSER.DAT` files for compromised accounts. `UserAssist` key gives overview on what was executed from the GUI.
+* Security EVTX:
+    * `4624`: Logon type 3. Gives source IP and logon username.
+    * `4778/4779`: 
+        * IP address of Source/Source system name.
+        * Logon Username
+* `Microsoft-Windows-RemoteDesktopServices-RdpCoreTS%4Operational.evtx`
+    * `131`: Connection attempts - Source IP.
+    * `98`: Successful connections
+* `Microsoft-Windows-TerminalServices-RemoteConnectionManager%4Operational.evtx`
+    * `1149`: Source IP/Logon Username. Blank username may indicate Sticky Keys.
+* `Microsoft-Windows-TerminalServices-LocalSessionManager%4Operational.evtx`
+    * `21,22,25`: Source IP/Logon Username
+    * `41`: Logon Username
+* Shimcache - SYSTEM
+    * `rdpclip.exe`
+    * `tstheme.exe`
+* Amcache.hve - First time executed
+    * `rdpclip.exe`
+    * `tstheme.exe`
+* Prefetch `C:\Windows\Prefetch`
+    * `rdpclip.exe`
+    * `tstheme.exe-{hash}.pf`
+    * Tool: `PECmd.exe`
+    ```cmd
+    PECmd.exe -d <Prefetch location>
+    ```
 
 # Secretsdump.py
 
@@ -418,3 +465,36 @@ python secretsdump.py <domain>/<user>:<password>@<dest>
 ## Resources
 * [https://github.com/Hackndo/lsassy](https://github.com/Hackndo/lsassy)
 * [https://en.hackndo.com/remote-lsass-dump-passwords/](https://en.hackndo.com/remote-lsass-dump-passwords/)
+
+## Characteristics
+Uses the MiniDump function from `comsvcs.dll` in order to dump the memory of the LSASS process. Can only be performed as SYSTEM, so it creates a scheduled task as SYSTEM, runs it and deletes it.
+
+Uses `impacket` to remotely read necessary bytes in lsass dump and `pypykatz` to extract credentials.
+
+## Usage
+```bash
+lsassy -d <domain> -u <username> -p <password> <targets>
+
+lsassy -d <domain> -u <username> -H [LM:]NT <targets>
+```
+
+## Detection
+
+### NWP
+* `Indicators of Compromise`
+    * `remote scheduled task`
+* `Filename`: possible indication of `.dmp` file
+* Application rule
+```bash
+service=139 && directory='windows\\temp\\' && filename='tmp.dmp'
+```
+
+### NWE
+* `Behaviors of Compromise`:
+    * `enumerates processes on local system`
+* Filter on `filename.dst='lsass.exe'`
+    * Check `Source Parameter` for possible `minidump` invocations via `rundll32.exe`.
+* Application rule:
+```bash
+device.type=`nwendpoint` && category=`process event` && (filename.all='rundll32.exe') && ((param.src contains 'comsvcs.dll' && param.src contains 'minidump') || param.dst contains 'comsvcs.dll' && param.dst contains 'minidump')
+```
