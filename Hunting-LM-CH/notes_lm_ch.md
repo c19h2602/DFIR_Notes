@@ -13,6 +13,36 @@
 * [https://u0041.co/blog/post/1](https://u0041.co/blog/post/1)
 * [https://www.youtube.com/watch?v=H8ybADELHzk](https://www.youtube.com/watch?v=H8ybADELHzk)
 
+# Mapped Network Shares
+
+## Characteristics
+Mapping remote shares (`C$` or `Admin$`) to local share through `net.exe`.
+
+## Usage
+```cmd
+net use z: \\host\C$ /user:<domain>\<username> <password>
+```
+
+## Detection
+* Security EVTX:
+	* `4648`: Logon specifying alternate credentials:
+		* Current logged on username.
+		* Alternate username.
+		* Destination hostname/IP.
+		* Process Name
+* `Microsoft-Windows-SmbClient%4Security.evtx`:
+	* `31001`: Failed logon to destination. Includes:
+		* Destination hostname
+		* Username for failed logon
+		* Reason code for failed destination logon.
+* `NTUSER\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2`: Contains remotely mapped drives.
+* ShimCache Evidence:
+	* `net.exe`
+	* `net1.exe`
+* AmCache.hve Evidence:
+	* `net.exe`
+	* `net1.exe`
+
 # PsExec
 
 ## Microsoft Sysinternals Suite
