@@ -12,6 +12,9 @@
 * [https://riccardoancarani.github.io/2020-05-10-hunting-for-impacket/#wmiexecpy](https://riccardoancarani.github.io/2020-05-10-hunting-for-impacket/#wmiexecpy)
 * [https://u0041.co/blog/post/1](https://u0041.co/blog/post/1)
 * [https://www.youtube.com/watch?v=H8ybADELHzk](https://www.youtube.com/watch?v=H8ybADELHzk)
+* [https://jb05s.github.io/Attacking-Windows-Lateral-Movement-with-Impacket/](https://jb05s.github.io/Attacking-Windows-Lateral-Movement-with-Impacket/)
+
+-------------------------------------------
 
 # Mapped Network Shares
 
@@ -24,6 +27,7 @@ net use z: \\host\C$ /user:<domain>\<username> <password>
 ```
 
 ## Detection
+### Source
 * Security EVTX:
 	* `4648`: Logon specifying alternate credentials:
 		* Current logged on username.
@@ -42,6 +46,114 @@ net use z: \\host\C$ /user:<domain>\<username> <password>
 * AmCache.hve Evidence:
 	* `net.exe`
 	* `net1.exe`
+* Shellbags: Remote folders accessed inside an interactive session via Explorer.
+
+### Destination
+* Security EVTX:
+    * `4624`: Logon type 3
+        * Source IP and Logon Username
+    * `4672`
+        * Logon Username
+        * Logon by user with admin rights
+        * Requirements for accessing default shares (C$ and Admin$)
+    * `4776`: NTLM if authenticating to Local System
+        * Source hostname
+        * Logon username
+    * `4768`: TGT granted. This is available only on the domain controller.
+        * Source hostname
+        * Logon username
+    * `4769`: Service Ticket Granted if authenticating to domain controller.
+        * Destination hostname
+        * Logon username
+        * Source IP
+    * `5140`: Share access
+    * `5145`: Auditing of shared files
+
+-------------------------------------------
+# Scheduled Tasks
+
+## Characteristics
+
+Utilities such as `at` and `schtasks`, along with the Windows Task Scheduler, can be used to schedule programs or scripts to be executed at a date and time. A task can also be scheduled on a remote system, provided the proper authentication is met to use RPC and file and printer sharing is turned on.Scheduling a task on a remote system typically required being a member of the Administrators group on the remote system.
+
+A task needs to be created or registered, then run and finally cleaned up to remove traces of activity.
+
+Scheduled Tasks use DCE/RPC for remote execution with the `ITaskSchedulerService` endpoint, called with the following operations:
+* `SchRpcRegisterTask` (Create/Register/Modify Task)
+* `SchRpcRun` (Run task)
+* `SchRpcGetTaskInfo` (Get task details)
+* `SchRpcRetrieveTask` (Retrieve list of tasks)
+* `SchRpcDelete` (Delete task)
+
+## Detection
+
+### Detection in Source
+* Security EVTX
+    * `4648`: Logon specifying alternate credentials
+        * Current logged on username
+        * Alternate username
+        * Destination hostname
+        * Destination IP
+        * Process name
+* ShimCache:
+    * `at.exe`
+    * `schtasks.exe`
+* AmCache.hve:
+    * `at.exe`
+    * `schtasks.exe`
+* Prefetch
+    * `at.exe-{hash}.pf`
+    * `schtasks.exe-{hash}.pf`
+
+## Usage
+
+### schtasks.exe
+```cmd
+schtasks /s <hostname/IP> /RU "SYSTEM" /create /tn <taskname> /tr <command/payload> /sc ONCE /sd <date> /st <time>
+# Can also specify particular user with /U and /P
+
+schtasks /s <hostname/IP> /run /TN <taskname>
+
+schtasks /s <hostname/IP> /TN <taskname> /delete /f
+
+```
+
+### Detection in Destination
+* Security EVTX
+    * `4624`: Logon type 3
+        * Source IP and Logon username
+    * `4672`
+        * Logon username
+        * Logon by user with admin rights
+        * Requirement for accessing default shares (C$ and Admin$)
+    * `4698`: Scheduled task created
+    * `4702`: Scheduled task updated
+    * `4699`: Scheduled task deleted
+    * `4700/4701`: Scheduled task enabled/disabled
+* `Microsoft-Windows-TaskScheduler%4Operational.evtx`
+    * `106`: Scheduled task created
+    * `140`: Scheduled task updated
+    * `141`: Scheduled task deleted
+    * `200/201`: Scheduled task executed/completed
+* `Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Task`
+* `Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree`
+* ShimCache: evidence of whatever was executed with task.
+* AmCache: evidence of whatever was executed with task.
+* Prefetch: evidence of whatever was executed with task.
+* For tasks created with `at.exe`:
+    * Job files created in `C:\Windows\Task`
+* For tasks created with `schtasks.exe`
+    * XML task files created in `C:\Windows\System32\Tasks`
+    * Author tag under `RegistrationInfo` can id:
+        * Source system name
+        * Creator username
+
+### at.exe
+```cmd
+at \\<host> <time> <command/payload>
+```
+
+-------------------------------------------
 
 # PsExec
 
@@ -65,16 +177,6 @@ privilege::logonpasswords
 sekurlsa::pth /user:<user> /domain:<domain> /ntlm:<hash>
 PsExec.exe /accepteula \\<dest> command
 ```
-
-### Detection
-
-Detection on destination
-* psexesvc.exe uploaded to target's $ADMIN share. Windows event log id 5145 created.
-* Event log id 7045 for service creation.
-
-Detection on source
-* Registry value created when PsExec License Agreement is accepted.
-* Prefetch for execution history.
 
 ## Impacket Toolsuite
 Fails with interactive binaries such as powershell, vssadmin, plink etc. Uploads a service binary with an arbitrary name.
@@ -116,13 +218,50 @@ python services.py <DOMAIN>\<user>@<host> create -name <service name> -display <
 python services.py <DOMAIN>\<user>@<host> start -name <service name>
 ```
 
-### Detection
-* Event log id 7045 for service creation.
-* Suspicious executable in network share.
-* Amcache and Shimcache evidence of program execution.
-* Prefetch: monitors dll load to optimize future program execution. Can contain traces of execution.
+## Detection
+
+### Detection on destination
+* `psexesvc.exe` uploaded to target's $ADMIN share.
+* ShimCache: `psexesvc.exe`
+* Amcache: `psexesvc.exe`
+* Prefetch: `psexesvc.exe-{hash}.pf`
+* Service creation in `SYSTEM\CurrentControlSet\Services\PSEXESVC`. Name can be different, attackers may use `-r` switch.
+* Security EVTX:
+    * `4648`: Logon specifying alternate credentials
+        * Username
+        * Process Name
+    * `4624`: Logon type 3 (normal) or logon type 2 for `-u` switch.
+        * Source IP
+        * Logon username
+    * `4672`: Special privileges assigned to new logon.
+        * Logon username
+        * Logon by user with admin rights
+        * Requirement for access default shares C$ and Admin$.
+    * `5140`: Share access
+        * `Admin$` share used by PsExec
+    * `5145`
+* System EVTX:
+    * `7045` for service install.
+
+### Detection on source
+* Registry value created when PsExec License Agreement is accepted.
+* Security EVTX:
+    * `4648`: Logon with alternate credentials
+        * Current logged on username
+        * Alternate username
+        * Destination hostname
+        * Destination IP
+        * Process name
+* `NTUSER.dat`: `Software\SysInternals\PsExec\EulaAccepted`
+* ShimCache: `psexec.exe`
+* AmCache.hve: `psexec.exe`
+* Prefetch:
+    * `psexec.exe-{hash}.pf`
+    * Possible references to other files accessed by psexec.exe.
+
+### Detection applicable to both source and destination
 * Memory Forensics:
-    * Look for PsExec process:
+    * Look for PsExe process:
     ```bash
     vol.py -f <image> --profile=<profile> psscan | grep PSEXE
     ```
@@ -132,6 +271,11 @@ python services.py <DOMAIN>\<user>@<host> start -name <service name>
 
     grep -i psexe mapped_strings
     ```
+
+**Important**
+Whatever is executed with psexec will be spawned as a child process of `psexesvc.exe` on the destination.
+
+-------------------------------------------
 
 # PAExec
 
@@ -160,6 +304,8 @@ paexec.exe \\<remote> -noname -s <target executable>
 * Amcache and Shimcache evidence of program execution.
 * Prefetch: monitors dll load to optimize future program execution. Can contain traces of execution.
     * Useful technique: when discovering traces of paexec, dump prefetch files for all systems in the network. Will give information of both source and destination of lateral movement.
+
+-------------------------------------------
 
 # smbexec.py
 
@@ -213,6 +359,8 @@ param.dst contains '\\127.0.0.1\C$\__output'
     * services runs command shell
     * runs chained command shell
 
+-------------------------------------------
+
 # Smbclient
 
 ## Characteristics
@@ -237,6 +385,8 @@ smbclient //<dest>/<share> -U <user>%<hash> --pw-nt-hash
 ```
 
 ## Detection
+
+-------------------------------------------
 
 # Winexe
 
@@ -274,6 +424,8 @@ filename.src = 'winexesvc.exe'
 
 (reference.id='7045') && (service.name='winexesvc')
 ```
+
+-------------------------------------------
 
 # WMI
 
@@ -316,6 +468,11 @@ action contains '127.0.0.1\\admin$\\__1'
 ```
 param.dst contains '127.0.0.1\\admin$\\__1'
 ```
+
+**Important**
+Whatever is executed with `wmic.exe` will be spawned as child of `wmiprvse.exe` in the destination.
+
+-------------------------------------------
 
 # SCShell
 
@@ -373,6 +530,8 @@ service = 139 && filename = 'svcctl' && action = 'openservicea' && action = 'cha
     * `os process runs command shell`
     * `services runs command shell`
 
+-------------------------------------------
+
 # Atexec.py
 
 ## Characteristics
@@ -387,7 +546,7 @@ python atexec.py <user>:<password>@<host> <command>
 
 * Task XML file can be found in `C:\Windows\System32\Tasks`. Check for random names.
 * Windows Event Logs:
-    * Microsoft-Windows-TaskScheduler/Operational:
+    * Microsoft-Windows-TaskScheduler%4Operational:
         * Event ID 106: New task creation event. Taskname and username.
         * Event ID 110: Task triggered by user.
         * Event ID 141: Task deleted.
@@ -396,7 +555,7 @@ python atexec.py <user>:<password>@<host> <command>
             * Login for task creation.
             * Login for retrieving the results.
         * Event ID 4634: Logoff with the same login ID as the login event above.
-    * Microsoft-Windows-SMBServer/Security:
+    * Microsoft-Windows-SMBServer%4Security:
         * Event ID 1015: Contains the attacking IP.
 * MFT Artifacts:
     * Task file in C:\Windows\system32\tasks\<taskname>
@@ -408,6 +567,8 @@ python atexec.py <user>:<password>@<host> <command>
 service=139 && analysis.service='named pipe`
 ```
 * Search in `Filename`: there must be `atsvc` to indicate that the AT-Scheduler service was used.
+
+-------------------------------------------
 
 # RDP
 
@@ -467,6 +628,8 @@ service=139 && analysis.service='named pipe`
     PECmd.exe -d <Prefetch location>
     ```
 
+-------------------------------------------
+
 # Secretsdump.py
 
 ## Characteristics
@@ -481,7 +644,8 @@ python secretsdump.py <domain>/<user>:<password>@<dest>
 ```
 
 ## Detection 1
-* Tool enables **RemoteRegistry** service on remote endpoint. Stopped state by default.
+* Tool enables **RemoteRegistry** service on remote endpoint. Stopped state by default. Can be found on System EVTX:
+    * `7040`: The start type of the RemoteRegistry was changed from disabled to demand start. Vice versa.
 * Security event log:
     * Event id 4624 (type 3): network logon and NTLM authentication package. Key length 0.
     * Event id 4672: special privileges assigned to logon. Check for **SeDebug or SeBackup** privileges.
@@ -489,6 +653,8 @@ python secretsdump.py <domain>/<user>:<password>@<dest>
 ## Detection 2
 * Configure Security Access Control List: Change ACL to log access to the HKLM\SYSTEM\CurrentControlSet\Control\SecurePipeServers\winreg registry value. Auditing permissions to everyone.
 * Configure regisry access auditing in Local Security Policy -> Security Settings -> Advanced Audit Policy Configuration -> System Audit Policies - Local Group -> Object Access -> Audit Registry.
+
+-------------------------------------------
 
 # Lsassy
 
@@ -510,6 +676,14 @@ lsassy -d <domain> -u <username> -H [LM:]NT <targets>
 
 ## Detection
 
+### Forensic Artifacts
+* Security EVTX:
+    * `4624`: Logon type 3. Gives source IP and logon username.
+    * `4672`: 
+        * Logon Username
+* System EVTX:
+    * `7045`: New service installed in the system
+        * Service filename: `cmD.exe /Q /c for /f "tokens=1,2 delims= " ^%A in ('"tasklist /fi "Imagename eq lsass.exe" | find "lsass""') do rundll32.exe C:\windows\System32\comsvcs.dll, MiniDump ^%B \Windows\Temp\<dump>.odt full`
 ### NWP
 * `Indicators of Compromise`
     * `remote scheduled task`
