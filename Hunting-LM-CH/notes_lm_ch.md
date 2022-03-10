@@ -438,6 +438,10 @@ Built into Windows. Allows remote access by communicating with RPC using port 13
 wmic /node:<dest> /user:<domain>\<user> /password:<password> process call create <executable>
 ```
 
+```powershell
+Invoke-WmiMethod -Computer host -Class Win32_Process -Name create -Argument <executable>
+```
+
 ## Impacket toolsuite
 ```bash
 python wmiexec.py <user>:<password>@<dest>
@@ -445,15 +449,52 @@ python wmiexec.py -hashes <hash> <user>@<dest>
 ```
 
 ## Detection
-* Source:
-    * Event id 4648: logon with explicit credentials.
-    * Event id 4688 / SysmonID 1: New process "wmic.exe" created
-    * Event id 4689: Process terminated.
-* Destination:
-    * Local admin authentication:
-        * Event IDs 4776,4672,4624 (Type 3)
-    * Security 4688 / Sysmon 1: process wmiprvse.exe with child process based on executed command.
 
+### Detection in Source:
+* Security EVTX
+    * `4648`: logon with explicit credentials.
+        * Current loggedon username
+        * Alternate username
+        * Destination hostname/IP
+        * Process name
+* System EVTX
+    * `4688`: New process "wmic.exe" created
+    * `4689`: Process terminated.
+* ShimCache: `wmic.exe`
+* BAM/DAM: Last time executed for `wmic.exe`
+* AmCache: First time executed for `wmic.exe`
+
+### Detection in Destination:
+* Security EVTX
+    * `4624`: Logon type 3
+        * Source IP
+        * Logon username
+    * `4776`,`4672`
+        * Logon username
+        * Logon by user with admin rights
+    * `4688`: process `wmiprvse.exe` with child process based on executed command
+* System EVTX
+    * `1`: process `wmiprvse.exe` with child process based on executed command
+* `Microsoft-Windows-WMI-Activity%4Operational.evtx`
+    * `5857`: Indicates time of wmiprvse execution and path to provider DLL. May find presence of malicious provider DLLs.
+    * `5860`,`5861`: Registration of Event Consumers. Can be used both for persistence or remote execution.
+* ShimCache
+    * `scrcons.exe`
+    * `mofcomp.exe`
+    * `wmiprvse.exe`
+    * Other executables that may be executed by attacker
+* AmCache
+    * `scrcons.exe`
+    * `mofcomp.exe`
+    * `wmiprvse.exe`
+    * Other executables that may be executed by attacker
+* `.mof` files that manage remote repository. Traces of the executables executed by the attacker.
+* Prefetch:
+    * `scrcons.exe-{hash}.pf`
+    * `mofcomp.exe-{hash}.pf`
+    * `wmiprvse.exe-{hash}.pf`
+    * Other executables that may be executed by attacker
+* Unauthorized changes to the WMI Repository in `C:\Windows\System32\wbem\Repository`
 ## Detection in NWP
 * Indicators of Compromised meta key: look for **wmi command**
 * Action meta key: executed commands
@@ -471,6 +512,81 @@ param.dst contains '127.0.0.1\\admin$\\__1'
 
 **Important**
 Whatever is executed with `wmic.exe` will be spawned as child of `wmiprvse.exe` in the destination.
+
+-------------------------------------------
+
+# Powershell Remoting
+
+## Usage
+
+```powershell
+Enter-PSSession -ComputerName <host/ip> -Credential <username>
+
+Invoke-Command -ComputerName <host/ip> -Credential <username> -ScriptBlock {<command to execute>}
+```
+## Detection
+
+### Detection in Source
+* Security EVTX
+    * `4648`: Logon specifying alternate credentials
+        * Current logged on username
+        * Alternate username
+        * Destination hostname
+        * Destination IP
+        * Process Name
+* `Microsoft-Windows-WinRM%4Operational.evtx`:
+    * `6`: WSMan Session Initialize
+        * Session created
+        * Destination hostname/IP
+        * Current logged on username
+    * `8`,`15`,`16`,`33`: WSMan session deinitialization
+        * Closing of WSMan session
+        * Current logged on username
+* `Microsoft-Windows-Powershell%4Operational.evtx`
+    * `40961`,`40962`: Local initiation of powershell.exe and associated user account
+    * `8193`,`8194`: Session created
+    * `8197`: Connect
+        * Session closed
+* ShimCache
+    * `powershell.exe`
+* BAM/DAM
+    * `powershell.exe`
+* AmCache
+    * `powershell.exe`
+* Prefetch
+    * `powershell.exe-{hash}.pf`: Will also contain scripts that run within 10 seconds of powershell.exe launching.
+* Command history: `C:\Users\<Username>\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt`: the previous 4096 commands are maintained per user.
+
+
+### Detection in Destination
+* Security EVTX
+    * `4624`: Logon type 3
+        * Source IP
+        * Logon Username
+    * `4672`
+        * Logon username
+        * Logon by user with admin rights
+* `Microsoft-Windows-PowerShell%4Operational.evtx`
+    * `4103`,`4104`: Script block logging. Logs scripts if configured
+    * `53504`: Records authenticating user
+* `Windows PowerShell.evtx`
+    * `400`,`403`: `ServerRemoteHost` indicates start/end of Remoting session
+    * `800`: includes partial script code
+* `Microsoft-Windows-WinRM%4Operational.evtx`
+    * `91`: Session creation
+    * `168`: Records authenticating user
+* ShimCache:
+    * `wsmprovhost.exe`
+    * Other executables executed through PSRemoting
+* AmCache
+    * `wsmprovhost.exe`
+    * Other executables executed through PSRemoting
+* `HKLM\SOFTWARE\Microsoft\PowerShell\ShellIds\Microsoft.PowerShell\ExecutionPolicy`: Attacker may change it to `bypass`
+* `Enter-PSSession` may create a user profile directory
+* Prefetch
+    * `wsmpprovhost.exe-{hash}.pf`
+    * Other executables executed through powershell
+
 
 -------------------------------------------
 
