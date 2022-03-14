@@ -13,6 +13,8 @@
 * [https://u0041.co/blog/post/1](https://u0041.co/blog/post/1)
 * [https://www.youtube.com/watch?v=H8ybADELHzk](https://www.youtube.com/watch?v=H8ybADELHzk)
 * [https://jb05s.github.io/Attacking-Windows-Lateral-Movement-with-Impacket/](https://jb05s.github.io/Attacking-Windows-Lateral-Movement-with-Impacket/)
+* [https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1](https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1)
+* [Pass-the-hash](https://blog.netwrix.com/2021/11/30/how-to-detect-pass-the-hash-attacks/)
 
 -------------------------------------------
 
@@ -515,6 +517,40 @@ Whatever is executed with `wmic.exe` will be spawned as child of `wmiprvse.exe` 
 
 -------------------------------------------
 
+# Pass-the-Hash
+
+## Characteristics
+Relies on NTLM authentication.
+
+## Usage
+* Mimikatz
+```cmd
+sekurlsa::logonpasswords
+
+sekurlsa::pth /user:<user> /ntlm:<ntlm> /domain:<domain>
+```
+
+## Detection
+### Detection in source
+* Security EVTX:
+    * Event ID 4648 - Logon with explicit credentials.
+    * Event ID 4624 - Logon: Logon type 9 NewCredential
+        * Logon Process: seclogo
+        * Authentication Package: Negotiate
+    * Event ID 4672 - Special Privileges assigned to new logon.
+
+### Detection in destination:
+* Security EVTX:
+    * Event ID 4624 - Logon: Logon type 3 NTLM
+    * Event ID 4672 - Special Privileges assigned to new logon.
+
+### Detection in DC
+* Security EVTX:
+    * Event ID 4776: The computer attempted to valide the credential for an account.
+
+
+-------------------------------------------
+
 # Powershell Remoting
 
 ## Usage
@@ -818,3 +854,8 @@ service=139 && directory='windows\\temp\\' && filename='tmp.dmp'
 ```bash
 device.type=`nwendpoint` && category=`process event` && (filename.all='rundll32.exe') && ((param.src contains 'comsvcs.dll' && param.src contains 'minidump') || param.dst contains 'comsvcs.dll' && param.dst contains 'minidump')
 ```
+
+-----------------------------------------------------------------------
+
+# LaZagne
+* [https://github.com/AlessandroZ/LaZagne](https://github.com/AlessandroZ/LaZagne)
