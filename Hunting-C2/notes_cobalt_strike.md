@@ -15,6 +15,7 @@
 * [https://github.com/MichaelKoczwara/Awesome-CobaltStrike-Defence](https://github.com/MichaelKoczwara/Awesome-CobaltStrike-Defence)
 * [https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1](https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1)
 * [https://blog.zsec.uk/cobalt-strike-profiles/](https://blog.zsec.uk/cobalt-strike-profiles/)
+* [https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1](https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1)
 
 # Characteristics
 Commercial adversary simulation software. Actively used by a wide range of threat actors.
@@ -149,6 +150,25 @@ Dump password hashes. Detection:
 Dump plaintext credentials and NTLM hashesh with Mimikatz.
 
 ### Lateral Movement
+Cobalt Strike has several built-in modules for Lateral Movement, divided into `Jump` and `Remote-Exec` modules.
+* Jump Modules
+
+| Jump Module| Arch |  Description |
+|------|--------|---|
+| psexec | x86 | Use a service to run a service exe artifact |
+| psexec64 |  x64 | Use a service to run a service exe artifact |
+| psexec_sh | x86 | Use a service to run a PowerShell one liner |
+| winrm | x86 | Run a PowerShell script via WinRM |
+| winrm64 | x64 | Run a PowerShell script via WinRM |
+
+* Remote-Exec Modules
+
+| Remote-Exec Module | Description |
+|------|---|
+| psexec             | Remote execute via Service Control Manager |
+| winrm              | Remote execute via WinRM (PowerShell)      |
+| wmi                | Remote execute via WMI (PowerShell)        |
+
 Most frequent techniques:
 * `remote-exec` - SMB/WMI executable transfer and exec: upload executable to the target host with the CS command `upload` and execute it with `remote-exec`. It can use psexec, winrm or wmi to execute a command/beacon. Detection:
     * Security EVTX:
