@@ -11,6 +11,7 @@
 * [https://github.com/Karneades/malware-persistence](https://github.com/Karneades/malware-persistence)
 * [https://www.hexacorn.com/blog/category/autostart-persistence/](https://www.hexacorn.com/blog/category/autostart-persistence/)
 * [https://attack.mitre.org/tactics/TA0003/](https://attack.mitre.org/tactics/TA0003/)
+* [https://pentestlab.blog/tag/persistence/](https://pentestlab.blog/tag/persistence/)
 
 ## Modify Registry keys
 
