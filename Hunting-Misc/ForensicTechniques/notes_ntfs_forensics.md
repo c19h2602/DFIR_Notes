@@ -7,16 +7,20 @@
 ## Resources
 * [https://www.youtube.com/watch?v=_qElVZJqlGY](https://www.youtube.com/watch?v=_qElVZJqlGY)
 * [http://forensicinsight.org/wp-content/uploads/2013/07/F-INSIGHT-Advanced-UsnJrnl-Forensics-English.pdf](http://forensicinsight.org/wp-content/uploads/2013/07/F-INSIGHT-Advanced-UsnJrnl-Forensics-English.pdf)
+* [https://community.netwitness.com/t5/netwitness-community-blog/do-you-mft-here-s-an-mft-overview/ba-p/519885](https://community.netwitness.com/t5/netwitness-community-blog/do-you-mft-here-s-an-mft-overview/ba-p/519885)
 
 ## Tools
 * [https://github.com/EricZimmerman/MFTECmd](https://github.com/EricZimmerman/MFTECmd)
 * RSA's standalone MFT viewer.
+* [https://github.com/dkovar/analyzeMFT](https://github.com/dkovar/analyzeMFT)
 
 ## NTFS Filesystem
 
 NTFS is the default filesystem on Windows systems. Important to extract as much state information as possible.
 
-Transactional record of all changes made to a volume. Used by the OS to roll back or undo changes in the event of a crash or power failure. Goal is to maintain filesystem integrity and prevent catastrophic events from happening.
+* $MFT: Master File Table of the NTFS filesystem. Keeps records of all file entries in the volume. There is at least one entry in the MFT for every file on an NTFS file system volume, including the MFT itself. All information about a file, including its size, time and date values, permissions, and data content, is stored either in MFT entries, or in space outside the MFT that is described by MFT entries.  Files and directories with size less than 512 bytes are written directly to the MFT.
+
+* Journal Files: Transactional record of all changes made to a volume. Used by the OS to roll back or undo changes in the event of a crash or power failure. Goal is to maintain filesystem integrity and prevent catastrophic events from happening.
 
 ## MACB Timestamps
 * M: Modification timestamp 
