@@ -467,7 +467,6 @@ python wmiexec.py -hashes <hash> <user>@<dest>
         * Alternate username
         * Destination hostname/IP
         * Process name
-* System EVTX
     * `4688`: New process "wmic.exe" created
     * `4689`: Process terminated.
 * ShimCache: `wmic.exe`
@@ -716,6 +715,14 @@ Use scshell.exe in spawned cmd.exe
 
 ## Detection
 
+### Detection in Destination
+* Security EVTX:
+    * Event ID 4624 - Logon: Contains account and source.
+    * Event ID 4672 - Special permissions assigned to new logon: Contains account name
+    * Event ID 4688 - Process Creation: `<executable>.exe` created with parent `services.exe`.
+    * Event ID 5140 - A network share object was accessed: share name `\\*\IPC$`.
+    * Event ID 5145 - Detailed file share: share name `\\*\IPC$` and relative target name `svvctl`. Contains source IP.
+
 ### Detection in NWP
 * `Indicators of Compromise`: `remote service control`
     * `Action Event`:
@@ -765,6 +772,7 @@ python atexec.py <user>:<password>@<host> <command>
             * Login for task creation.
             * Login for retrieving the results.
         * Event ID 4634: Logoff with the same login ID as the login event above.
+        * Event ID 4688 - Process Created: `cmd.exe` with parent  `svchost.exe`.
     * Microsoft-Windows-SMBServer%4Security:
         * Event ID 1015: Contains the attacking IP.
 * MFT Artifacts:
