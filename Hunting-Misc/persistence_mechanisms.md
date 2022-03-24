@@ -1,4 +1,4 @@
-# Malware Persistence Mechanisms
+# Persistence Mechanisms
 
 > Paolo Coba | 04/03/2021
 
@@ -12,6 +12,9 @@
 * [https://www.hexacorn.com/blog/category/autostart-persistence/](https://www.hexacorn.com/blog/category/autostart-persistence/)
 * [https://attack.mitre.org/tactics/TA0003/](https://attack.mitre.org/tactics/TA0003/)
 * [https://pentestlab.blog/tag/persistence/](https://pentestlab.blog/tag/persistence/)
+* [http://www.fuzzysecurity.com/tutorials/19.html](http://www.fuzzysecurity.com/tutorials/19.html)
+* [https://www.mandiant.com/resources/dissecting-one-ofap](https://www.mandiant.com/resources/dissecting-one-ofap)
+* [https://medium.com/threatpunter/detecting-removing-wmi-persistence-60ccbb7dff96](https://medium.com/threatpunter/detecting-removing-wmi-persistence-60ccbb7dff96)
 
 ## Modify Registry keys
 
@@ -66,3 +69,116 @@ DLL search order:
 ## Shortcut Hijacking
 
 Hijack the shortcut icons Target attribute. The shortcut icon can be forced to download content from an evil site.
+
+## Scheduled Backdoors
+
+Run tasks with different permission sets and trigger the task using events or at specific time intervals.
+
+### Schtasks:
+* Run daily tasks
+```cmd
+schtasks /create /tn <sometask> /tr <command> /sc daily /st <time>
+```
+* Run a task each time the user's session is idle for 5 minutes
+```cmd
+schtasks /create /tn <sometask> /tr <command> /sc onidle /i 5
+```
+* Run a task as SYSTEM each time a user logs in
+```cmd
+schtasks /create /run "NT AUTHORITY\SYSTEM" /rp "" /tn <sometask> /tr <command> /sc onlogon
+```
+* Run a task everytime a user logs off the system
+```cmd
+wevtutil qe Security /f:text /c:1 /q:"Event[System[(EventID=4647)]] //check last recorded User initiated Logoff
+
+schtasks /create /tn OnLogOff /tr <command> /sc ONEVENT /ec Security /MO "*[System[(Level=4 or Level=10) and (EventID=4634)]]"
+```
+
+
+## WMI Permanent Event Subscription // Managed Object Formats (MOF)
+
+MOFs are compiled scripts that describe CIM classes which are compiled into the WMI repository. A MOF file must consist of three components:
+* `__EventFilter`: uses WMI Query Language to detect a specific event.
+```cmd
+instance of __EventFilter as $EventFilter
+{
+    Name = "Event Filter Name";
+    EventNamespace = "Root\\Cimv2";
+    Query = "WQL-Query";
+    QueryLanguage = "WQL";
+};
+```
+Example Query: 
+```cmd
+# Notice that we are checking for an instance creation where the event code is 4624 and the message
+property contains "User32".
+Query = "SELECT * FROM __InstanceCreationEvent Within 5"
+    "Where TargetInstance Isa \"Win32_NTLogEvent\" "
+    "And Targetinstance.EventCode = \"4624\" "
+    "And Targetinstance.Message Like \"%User32%\" ";
+```
+* `Event Consumer Class`: defines actions.
+    * `ActiveScriptEventConsumer`: allows the execution of VBS payloads
+    ```cmd
+    instance of ActiveScriptEventConsumer as $consumer
+    {
+        Name = "Event Consumer Name";
+        ScriptingEngine = "VBScript";
+        ScriptText = "<vbs payload>";
+    };
+    ```
+    * `CommandLineEventConsumer`: executes terminal commands
+    ```cmd
+    instance of CommandLineEventConsumer as $consumer
+    {
+        Name = "Event Consumer Name";
+        RunInteractively = false;
+        CommandLineTemplate = "<payload>";
+    };
+    ```
+* `__FilterToConsumerBinding`: binds an event and an action.
+```cmd
+instance of __FilterToConsumerBinding
+{
+    Filter = $filter;
+    Consumer = $consumer;
+}
+```
+
+MOF compilation
+* Local: needs to have pragma namespace set: `("\\\\\\root\\subscription")`
+```cmd
+mofcomp.exe .\<mof file>
+```
+
+* Remote: namespace is specified in command line
+```cmd
+mofcomp.exe -N \\<Destination>\root\subscription .\<mof file>
+```
+
+To check succesfull deployment:
+```powershell
+Get-WmiObject -namespace root\subscription -Class __EventFilter -Filter "name=<Event Filter name>
+```
+
+To create with PowerShell: [https://gist.github.com/infosecn1nja/d9a42a68e9d3671e1fbadee5d7dc8964](https://gist.github.com/infosecn1nja/d9a42a68e9d3671e1fbadee5d7dc8964)
+
+### Detection
+* Sysmon: can be configured to log `WmiEventFilter`, `WmiEventConsumer` and `WmiEventConsumerToFilter`
+    * Event ID 19
+    * Event ID 20
+    * Event ID 21
+* Autorins: check `WMI` tab.
+* PowerShell:
+    * Event Filter
+    ```powershell
+    Get-WMIObject -namespace root\subscription -Class __EventFilter -Filter "Name=<Event filter name>
+    ```
+    * Event Consumer
+    ```powershell
+    Get-WMIObject -namespace root\subscription -Class CommandLineEventConsumer -Filter "Name=<Event Filter name>"
+    ```
+    * Binding
+    ```powershell
+    Get-WMIObject -Namespace root\subscription -Class __FilterToConsumerBinding -Filter "__Path LIKE <Event Filter name>"
+    ```
