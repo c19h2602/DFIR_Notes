@@ -16,6 +16,7 @@
 * [https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1](https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1)
 * [Pass-the-hash](https://blog.netwrix.com/2021/11/30/how-to-detect-pass-the-hash-attacks/)
 * [https://www.jpcert.or.jp/english/pub/sr/20170612ac-ir_research_en.pdf](https://www.jpcert.or.jp/english/pub/sr/20170612ac-ir_research_en.pdf)
+* [https://hackmag.com/security/lateral-guide/](https://hackmag.com/security/lateral-guide/)
 
 -------------------------------------------
 
