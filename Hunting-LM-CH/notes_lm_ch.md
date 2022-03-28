@@ -16,7 +16,6 @@
 * [https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1](https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1)
 * [Pass-the-hash](https://blog.netwrix.com/2021/11/30/how-to-detect-pass-the-hash-attacks/)
 * [https://www.jpcert.or.jp/english/pub/sr/20170612ac-ir_research_en.pdf](https://www.jpcert.or.jp/english/pub/sr/20170612ac-ir_research_en.pdf)
-* [https://hackmag.com/security/lateral-guide/](https://hackmag.com/security/lateral-guide/)
 
 -------------------------------------------
 
@@ -89,6 +88,19 @@ Scheduled Tasks use DCE/RPC for remote execution with the `ITaskSchedulerService
 * `SchRpcRetrieveTask` (Retrieve list of tasks)
 * `SchRpcDelete` (Delete task)
 
+## Usage
+
+### schtasks.exe
+```cmd
+schtasks /s <hostname/IP> /RU "SYSTEM" /create /tn <taskname> /tr <command/payload> /sc ONCE /sd <date> /st <time>
+# Can also specify particular user with /U and /P
+
+schtasks /s <hostname/IP> /run /TN <taskname>
+
+schtasks /s <hostname/IP> /TN <taskname> /delete /f
+
+```
+
 ## Detection
 
 ### Detection in Source
@@ -108,19 +120,6 @@ Scheduled Tasks use DCE/RPC for remote execution with the `ITaskSchedulerService
 * Prefetch
     * `at.exe-{hash}.pf`
     * `schtasks.exe-{hash}.pf`
-
-## Usage
-
-### schtasks.exe
-```cmd
-schtasks /s <hostname/IP> /RU "SYSTEM" /create /tn <taskname> /tr <command/payload> /sc ONCE /sd <date> /st <time>
-# Can also specify particular user with /U and /P
-
-schtasks /s <hostname/IP> /run /TN <taskname>
-
-schtasks /s <hostname/IP> /TN <taskname> /delete /f
-
-```
 
 ### Detection in Destination
 * Security EVTX
