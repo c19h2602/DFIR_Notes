@@ -19,8 +19,9 @@ The data in the `AppCompatCache` value is written to the registry hive file only
 
 ## Tools
 * [AppCompatCacheParser](https://ericzimmerman.github.io)
-* [RegRipper](https://github.com/keydet89/RegRipper3.0)
+* [RegRipper plugin](https://github.com/keydet89/RegRipper3.0)
 * [Mandiant's ShimCacheParser](https://github.com/mandiant/ShimCacheParser)
+* [ShimCacheMem Volatility Plugin](https://github.com/fireeye/Volatility-Plugins/tree/master/shimcachemem)
 
 ### Usage
 * ShimCacheParser
@@ -34,4 +35,8 @@ rip.exe -r <hive> -p <appcompatcache | appcompatcache_tln>
 * AppCompatParser
 ```cmd
 AppCompatParser.exe -f <hive> --csv <path> --csvf <filename>
+```
+* Volatility: grab shimcache from live memory
+```bash
+vol.py -f <image> --profile=<profile> shimcachemem --output=csv --output-file=<output>.csv
 ```

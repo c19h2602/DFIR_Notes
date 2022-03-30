@@ -13,7 +13,11 @@
 ## Shellbag Forensics
 Purpose is to help track views, sizes and positions of a folder window when viewed through Windows Explorer. Includes network folders and removable devices.
 
-Provides insight into the folder, browsing history of a suspect as well as details for any folder that might no longer exist on a system.
+Provides insight into the folder, browsing history of a suspect as well as details for any folder that might no longer exist on a system. Information contains:
+* Full path
+* Type of object
+* MAC timestamps
+* Information on subfolders
 
 Locations:
 * Windows Vista and later:
