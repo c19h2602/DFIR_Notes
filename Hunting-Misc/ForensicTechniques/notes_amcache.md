@@ -25,7 +25,7 @@ Windows system file that stores information on program execution. Located in `C:
 ### Usage
 * RegRipper
 ```cmd
-rip.exe -f <Amcache> -p amcache
+rip.exe -r <Amcache> -p amcache
 ```
 * AmcacheParser
 ```cmd
