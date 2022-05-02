@@ -128,3 +128,25 @@ MFTEcmd.exe -f <file> --csv <path> --csvf <outfile>
 ```
 * Use `TimelineExplorer` to view results
 
+### MFT processing with analyzeMFT
+
+* Output format is csv
+```bash
+python analyzeMFT.py -f <mft> -o <output>
+```
+
+* Bulk process
+```bash
+#!/bin/bash
+
+mkdir ${pwd}/processed
+
+for filename in ${1}
+do
+    base=$(basename ${filename})
+    csv_filename=${base}.csv
+    python analyzeMFT.py -f ${filename} -o ${pwd}/processed/${csv_filename}
+done
+```
+
+
