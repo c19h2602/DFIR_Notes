@@ -40,10 +40,12 @@ Can find PC and account names.
 
 ### Web-Based Infection Traffic
 
-* Base filter: `http.request or ssl.handshake.type==1`
+* Web base filter: `http.request or ssl.handshake.type==1`
 * Remove Simple Service Discovery Protocol: `(http.request or ssl.handshake.type==1) and !(ssdp)`
+* Web base with response: `(http.request or ssl.handshake.type==1 or http.response) and !(udp.port eq 1900)`
 * Display all connection attempts. Include TCP SYN segments: `(http.request or ssl.handshake.type==1 or tcp.flags eq 0x0002) and !(udp.port eq 1900)`
 * Add dns traffic: `(http.request or ssl.handshake.type==1 or tcp.flags eq 0x0002 or dns) and !(udp.port eq 1900)`
+* Web with tls certificate: `(http.request or tls.handshake.type==1 or tls.handshake.type==11) and !(udp.port eq 1900)`
 
 ### SMTP Traffic
 
@@ -55,4 +57,7 @@ For unencrypted smtp traffic. Search for email header lines:
 ### FTP
 * FTP commands: `ftp.request.command`
 * FTP data: `ftp-data`
+
+### Custom Qakbot filter
+* `(http.request or tls.handshake.type eq 1 or (tcp.port eq 65400 and tcp.flags eq 0x0002) or smtp or pop or imap) and !(ssdp)`
 
