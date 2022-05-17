@@ -74,7 +74,9 @@ CS uses default unique pipe names (can be used for detection). Can be configured
 * `\msagent_*`
 * `\MSSE-*`
 * `\*-server`
-Can be detected through System EVTX events `17` and `18`. Should be explicitly configured to log named pipes. [CS detection through named pipes](https://labs.f-secure.com/blog/detecting-cobalt-strike-default-modules-via-named-pipe-analysis/).
+* `\dce_64`
+
+Can be detected through System EVTX events `17` and `18`. Should be explicitly configured to log named pipes. Deep dive example illustrated [CS detection through named pipes](https://labs.f-secure.com/blog/detecting-cobalt-strike-default-modules-via-named-pipe-analysis/).
 
 Three additional methods to execute CS beacons:
 1. [Using PowerShell to load and inject shellcode directly into memory](https://newtonpaul.com/analysing-fileless-malware-cobalt-strike-beacon/#Injecting_into_memory_with_PowerShell)
