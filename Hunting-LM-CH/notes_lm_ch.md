@@ -16,6 +16,8 @@
 * [https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1](https://www.unh4ck.com/detection-engineering-and-threat-hunting/lateral-movement/detecting-conti-cobaltstrike-lateral-movement-techniques-part-1)
 * [Pass-the-hash](https://blog.netwrix.com/2021/11/30/how-to-detect-pass-the-hash-attacks/)
 * [https://www.jpcert.or.jp/english/pub/sr/20170612ac-ir_research_en.pdf](https://www.jpcert.or.jp/english/pub/sr/20170612ac-ir_research_en.pdf)
+* [https://community.netwitness.com/t5/netwitness-community-blog/detecting-impacket-with-netwitness-endpoint/ba-p/683062](https://community.netwitness.com/t5/netwitness-community-blog/detecting-impacket-with-netwitness-endpoint/ba-p/683062)
+* [https://neil-fox.github.io/Impacket-usage-&-detection/](https://neil-fox.github.io/Impacket-usage-&-detection/)
 
 -------------------------------------------
 
@@ -223,6 +225,17 @@ python services.py <DOMAIN>\<user>@<host> start -name <service name>
 
 ## Detection
 
+### Running processes
+* SysInternal's PsExec:
+```cmd
+PSEXESVC.exe -> Create Process -> cmd.exe -> Create Process -> conhost.exe
+```
+* Impacket's psexec.py
+```cmd
+ntoskrnl.exe -> Write to Executable -> <randomname>.exe
+<randomname>.exe -> Create Process -> cmd.exe -> Create Process -> conhost.exe
+```
+
 ### Detection on source
 * Registry value created when PsExec License Agreement is accepted.
 * Security EVTX:
@@ -344,6 +357,13 @@ python smbexec.py -hashes <hash> <user>@<host> command
 ## Detection
 * Event log id 7045 for service creation
 
+### Running processes
+```cmd
+cmd.exe -> Write to Executable -> execute.bat
+
+cmd.exe (C:\Windows\System32\cmd.exe /Q/c echo <command> > \\127.0.0.1\C$\__output 2>&1 > %TEMP%\execute.bat & %COMSPEC% /Q /c %TEMP%\execute.bat & del %TEMP%\execute.bat)-> Create Process -> cmd.exe (C:\Windows\System32\cmd.exe /Q /c %TEMP%\execute.bat ) -> Create Process -> conhost.exe
+```
+
 ### Detection in Netwitness Packets
 
 * Application rule for smbexec detection
@@ -459,6 +479,12 @@ python wmiexec.py -hashes <hash> <user>@<dest>
 ```
 
 ## Detection
+
+### Running processes
+* wmiexec.py
+```cmd
+wmiprvse.exe -> Create Process -> cmd.exe (C:\Windows\System32\cmd.exe /Q /c <command> 1 > \\127.0.0.1\ADMIN$\___ 2>&1) -> Create Process -> conhost.exe
+```
 
 ### Detection in Source:
 * Security EVTX
@@ -752,7 +778,7 @@ service = 139 && filename = 'svcctl' && action = 'openservicea' && action = 'cha
 # Atexec.py
 
 ## Characteristics
-Lateral movement through Windows task creation. Creates remote task, executes and then deletes it. Does not allow interactive sessions. It writes command results to a file with the same name as the task in C:\Windows\temp\<taskname>.tmp.
+Lateral movement through Windows task creation. Creates remote task, executes and then deletes it. Does not allow interactive sessions. It writes command results to a file with the same name as the task in C:\Windows\temp\<taskname>.tmp. Connections over TCP port 445.
 
 ## Usage
 ```bash
@@ -761,6 +787,11 @@ python atexec.py <user>:<password>@<host> <command>
 
 ## Detection
 
+### Running processes
+```cmd
+svchost.exe -> Create Process -> cmd.exe (C:\Windows\System32\cmd.exe /C <command> > C:\Windows\temp\<taskname>.tmp 2>&1)
+```
+### Forensics Detection
 * Task XML file can be found in `C:\Windows\System32\Tasks`. Check for random names.
 * Windows Event Logs:
     * Microsoft-Windows-TaskScheduler%4Operational:
@@ -958,7 +989,7 @@ Kerberos TGT tickets expire in 10 hours by default and it can be renewed for 7 d
 
 Look for TGT renewals or TGS requests with a particular Account/Client pair that have no associated TGT request for the same Account/Client pair.
 
-Additianl method includes correlating `Get-LoggedOnUsers` with `klist`
+Additional method includes correlating `Get-LoggedOnUsers` with `klist`
 
 
 -------------------------------------------
@@ -982,6 +1013,12 @@ python secretsdump.py <domain>/<user>:<password>@<dest>
 * Security event log:
     * Event id 4624 (type 3): network logon and NTLM authentication package. Key length 0.
     * Event id 4672: special privileges assigned to logon. Check for **SeDebug or SeBackup** privileges.
+### Running processes
+```cmd
+services.exe -> Create Process -> svchost.exe (C:\Windows\System32\svchost.exe -k localService -p -s RemoteRegistry)
+
+lsass.exe -> Open OS Process -> svchost.exe (C:\Windows\System32\svchost.exe -k localService -p -s RemoteRegistry)
+```
 
 ## Detection 2
 * Configure Security Access Control List: Change ACL to log access to the HKLM\SYSTEM\CurrentControlSet\Control\SecurePipeServers\winreg registry value. Auditing permissions to everyone.
