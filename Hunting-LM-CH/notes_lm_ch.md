@@ -815,7 +815,34 @@ svchost.exe -> Create Process -> cmd.exe (C:\Windows\System32\cmd.exe /C <comman
 ```cmd
 service=139 && analysis.service='named pipe`
 ```
-* Search in `Filename`: there must be `atsvc` to indicate that the AT-Scheduler service was used.
+* Search in `filename`: there must be `atsvc` to indicate that the AT-Scheduler service was used.
+
+-------------------------------------------
+
+# dcomexec.py
+
+Uses DCOM endpoints to open semi-interactive shell on remote systems. Uses multiple ports for connection (TCP/135, TCP/445, TCP/49751).
+
+## Usage
+
+```bash
+Open semi-interactive shell: dcomexec.py --object <MMC20.Application, ShellWindows, SHellBrowserWindow> <domain>/<username>:<password>@<ip>
+
+Execute specific command: dcomexec.py --object <MMC20.Application, ShellWindows, SHellBrowserWindow> <domain>/<username>:<password>@<ip> <command>
+```
+
+## Detection
+
+### Running Processes
+
+```cmd
+mmc.exe -> Create Process -> cmd.exe (C:\Windows\System32\cmd.exe /Q /c <command> 1 > \\127.0.0.1\ADMIN$\_____ 2>&1) -> Create Process -> conhost.exe
+```
+
+### Forensic Artifacts
+* Multiple `Logon` and `Special Logon` Event IDs generated:
+    * Security Event ID 4624
+    * Security Event ID 4672
 
 -------------------------------------------
 
@@ -1013,6 +1040,7 @@ python secretsdump.py <domain>/<user>:<password>@<dest>
 * Security event log:
     * Event id 4624 (type 3): network logon and NTLM authentication package. Key length 0.
     * Event id 4672: special privileges assigned to logon. Check for **SeDebug or SeBackup** privileges.
+    
 ### Running processes
 ```cmd
 services.exe -> Create Process -> svchost.exe (C:\Windows\System32\svchost.exe -k localService -p -s RemoteRegistry)
