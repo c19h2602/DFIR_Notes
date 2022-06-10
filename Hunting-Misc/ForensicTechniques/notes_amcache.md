@@ -10,7 +10,7 @@
 
 ## Characteristics
 
-Windows system file that stores information on program execution. Located in `C:\Windows\AppCompat\Program\AmCache.hve`. The stored information includes:
+Windows system file that stores information on program execution. Located in `C:\Windows\AppCompat\Programs\AmCache.hve`. The stored information includes:
 * Path of the executable
 * File size
 * First time the program was executed
