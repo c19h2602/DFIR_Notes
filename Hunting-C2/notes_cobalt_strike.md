@@ -343,6 +343,7 @@ jump winrm64 -> svchost.exe (C:\Windows\System32\svchost.exe -k DcomLaunch)-> ws
     * PowerShell Event ID 400: `HostApplication` contains `powershell -nop -w -hidden -encodedcommand`
     * Pipe creation with regex pattern `status_[0-9a-f]{2}`.
         * Security Event ID 5145 - A network share object was checked to see whether client can be granted desired access.
+        * [Cool CyberChef recipe for decoding](https://gist.github.com/0xtornado/69d12572520122cb9bddc2d6793d97ab)
     * Process Tree
     ```cmd
     jump psexec_psh -> services.exe (C:\Windows\System32\services.exe)-> cmd.exe (C:\Windows\System32\cmd.exe) -> powershell.exe (C:\Windows\System32\powershell.exe) -> cmd.exe
