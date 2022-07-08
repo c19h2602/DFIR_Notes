@@ -8,6 +8,8 @@
 * [https://resources.infosecinstitute.com/topic/browser-forensics-google-chrome/](https://resources.infosecinstitute.com/topic/browser-forensics-google-chrome/)
 * [https://nasbench.medium.com/web-browsers-forensics-7e99940c579a](https://nasbench.medium.com/web-browsers-forensics-7e99940c579a)
 * [https://book.hacktricks.xyz/forensics/basic-forensic-methodology/specific-software-file-type-tricks/browser-artifacts](https://book.hacktricks.xyz/forensics/basic-forensic-methodology/specific-software-file-type-tricks/browser-artifacts)
+* [https://ohyicong.medium.com/how-to-hack-chrome-password-with-python-1bedc167be3d](https://ohyicong.medium.com/how-to-hack-chrome-password-with-python-1bedc167be3d)
+* [https://medium.com/geekculture/how-to-hack-firefox-passwords-with-python-a394abf18016](https://medium.com/geekculture/how-to-hack-firefox-passwords-with-python-a394abf18016)
 
 ## Tools
 * [DB Browser](https://sqlitebrowser.org/dl/)
@@ -64,6 +66,32 @@
 * Thumbnails: Stored in SQLite format
      `C:\Users\<user>\AppData\Local\Google\Chrome\User Data\Default\Top Sites`
     * `C:\Users\<user>\AppData\Local\Google\Chrome\User Data\Default\Thumbnails`
+
+#### Getting Saved Credentials
+
+Chrome uses `AES GCM` encryption. It saves AES passwords in a file inside the AppData folder called `Local State`. Concatenates the IV with the ciphertext and saves them in a file inside the AppData folder named `Login Data`.
+Four main steps to decrypt Chrome passwords:
+1. Find encryption key
+    * Stored in `C:\Users\<pc>\AppData\Local\Google\Chrome\User Data\Local State` in `os_crypt.encrypted_key`. Is is Base64 encoded.
+        * Cannot be decrypted if user is not current user. Need to crack user Master Key.
+            * Locate Master Key: `%AppData%\Microsoft\Protect\<SID>`. Will have both SID and master key file.
+            * Extract user hash with [DPAPIlmk2john.py](https://github.com/openwall/john/blob/bleeding-jumbo/run/DPAPImk2john.py) and crack it with john/hashcat.
+            ```cmd
+            python DPAPIlmk2john.py --sid=<sid> --masterkey=<path to mk file> --context="local"
+            ```
+            * Use `mimikatz` to decrypt the master key
+            ```cmd
+            dpapi::masterkey /in:<path to mk file> /sid:<sid> /password:<cracked password> /protected
+            ```
+            * Decrypt the encryption key with `mimikatz`
+            ```cmd
+            dpapi::blob /masterkey:<decrypted mk> /in:<encrypted key> /out:<decrypted key file>
+            ```
+2. Get ciphertext passwords from `Login Data` SQLite db (`C:\Users\<PC Name>\AppData\Local\Google\Chrome\User Data\Default\Login Data`)
+3. AES parameters:
+    * IV: ciphertext[3:15]
+    * Encrypted Password: ciphertext[15:-16]
+4. Use IV and decrypted key to decrypt password with [AES GCM](https://gchq.github.io/CyberChef/#recipe=AES_Decrypt(%7B'option':'Hex','string':''%7D,%7B'option':'Hex','string':''%7D,'GCM','Hex','Raw',%7B'option':'Hex','string':''%7D,%7B'option':'Hex','string':''%7D))
 
 ### Linux
 * Profile:
